@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+pydub
+python-multipart
+SpeechRecognition
+openai
+python-dotenv
+Boto3
+motor
+pymongo[srv]
+librosa
