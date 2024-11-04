@@ -74,5 +74,5 @@ jobs:
             fi
 
             # Ejecutar la aplicación Flask
-            sudo docker run -d -p 3000:3000 patric-analytics
+            sudo docker run -d -p 8000:8000 patric-analytics
           EOF
