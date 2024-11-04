@@ -3,7 +3,7 @@ from fastapi import HTTPException, APIRouter
 import requests
 import os
 from app.models import ConversationAnalysisRequest
-from app.services import collect_conversation_fragments, analyze_text, analyze_audio
+from app.services import collect_conversation_fragments, analyze_text, analyze_audio, getClassesMongoDB
 
 router = APIRouter()
 
@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 
 @router.post("/analyze-conversation")
 async def analyze_conversation(request: ConversationAnalysisRequest):
+    classes = getClassesMongoDB()
     logger.info(f"Received request to analyze conversation with ID: {request.conversation_id} for user ID: {request.user_id}")
 
     # Recuperar los fragmentos de la conversación

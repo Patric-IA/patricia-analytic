@@ -12,7 +12,9 @@ import io
 import librosa
 import numpy as np
 import logging
-
+from transformers import pipeline
+import speech_recognition as sr
+import spacy
 
 # Conexiones a S3 y MongoDB
 s3 = boto3.resource('s3')
@@ -105,8 +107,8 @@ def analyze_text(transcriptions):
 
 def analyze_audio(audio_links):
     """
-    Realiza un análisis de los archivos de audio descargándolos de S3 y
-    usando librosa para obtener métricas básicas.
+    Realiza un análisis avanzado de los archivos de audio descargándolos de S3 y
+    usando varias librerías para obtener métricas y retroalimentación detallada.
     """
     logger.info("Iniciando análisis de audio.")
     s3 = boto3.client('s3')
@@ -132,10 +134,39 @@ def analyze_audio(audio_links):
     tempo, _ = librosa.beat.beat_track(y=y, sr=sr)
     pitch = np.mean(librosa.yin(y, fmin=librosa.note_to_hz('C2'), fmax=librosa.note_to_hz('C7')))
 
+    # Transcripción de audio
+    recognizer = sr.Recognizer()
+    with sr.AudioFile(audio_file_path) as source:
+        audio = recognizer.record(source)
+        try:
+            transcription = recognizer.recognize_google(audio)
+        except sr.UnknownValueError:
+            transcription = "No se pudo reconocer el audio."
+
+    # Análisis de emociones
+    emotion_analyzer = pipeline("sentiment-analysis")
+    emotion_analysis = emotion_analyzer(transcription)
+
+    # Análisis léxico y gramatical
+    nlp = spacy.load("en_core_web_sm")
+    doc = nlp(transcription)
+    lexicon_score = len(set([token.text.lower() for token in doc if token.is_alpha])) / len(doc)
+    grammar_score = sum(1 for token in doc if token.pos_ in {"NOUN", "VERB", "ADJ", "ADV"}) / len(doc)
+
     logger.info("Análisis de audio completado con éxito.")
-    # Retornar análisis de audio
+    
+    # Retornar análisis de audio enriquecido
     return {
         "duration_seconds": duration,
         "tempo": tempo,
-        "average_pitch": pitch
+        "average_pitch": pitch,
+        "transcription": transcription,
+        "emotion_analysis": emotion_analysis,
+        "lexicon_score": lexicon_score,
+        "grammar_score": grammar_score
     }
+
+
+def getClassesMongoDB():
+    classes = db["classes"]
+    return classes.find({})

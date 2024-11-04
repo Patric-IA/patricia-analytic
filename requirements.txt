@@ -9,3 +9,5 @@ Boto3
 motor
 pymongo[srv]
 librosa
+spacy
+transformers
