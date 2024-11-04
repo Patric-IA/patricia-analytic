@@ -19,8 +19,7 @@ async def analyze_conversation(request: ConversationAnalysisRequest):
     # Recuperar los fragmentos de la conversación
     fragments = collect_conversation_fragments(request.conversation_id)
     if not fragments:
-        logger.error(f"Conversation with ID: {
-                     request.conversation_id} not found.")
+        logger.error(f"Conversation with ID: {request.conversation_id} not found.")
         raise HTTPException(
             status_code=404, detail="Conversación no encontrada.")
 
@@ -28,21 +27,18 @@ async def analyze_conversation(request: ConversationAnalysisRequest):
     user_fragments = [fragment for fragment in fragments if fragment.get(
         "speaker") == request.user_id]
     if not user_fragments:
-        logger.error(f"No fragments found for user ID: {
-                     request.user_id} in conversation ID: {request.conversation_id}.")
+        logger.error(f"No fragments found for user ID: {request.user_id} in conversation ID: {request.conversation_id}.")
         raise HTTPException(
             status_code=404, detail="No se encontraron fragmentos para el usuario.")
 
-    logger.info(f"Found {len(user_fragments)} fragments for user ID: {
-                request.user_id}.")
+    logger.info(f"Found {len(user_fragments)} fragments for user ID: {request.user_id}.")
 
     # Unir los enlaces de audio y las transcripciones
     audio_links = [fragment["audio_url"] for fragment in user_fragments]
     transcriptions = " ".join(fragment["transcription"]
                               for fragment in user_fragments)
 
-    logger.info(f"Collected {len(audio_links)
-                             } audio links and transcriptions for analysis.")
+    logger.info(f"Collected {len(audio_links)} audio links and transcriptions for analysis.")
 
     # Realizar análisis textual utilizando OpenAI
     analysis_result = analyze_text(transcriptions)
@@ -65,7 +61,6 @@ async def analyze_conversation(request: ConversationAnalysisRequest):
         }
     }
 
-    logger.info(f"Analysis result for conversation ID: {
-                request.conversation_id} and user ID: {request.user_id} returned successfully.")
+    logger.info(f"Analysis result for conversation ID: {request.conversation_id} and user ID: {request.user_id} returned successfully.")
     logger.info(result)
     return result
