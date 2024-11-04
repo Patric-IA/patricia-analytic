@@ -25,6 +25,15 @@ jobs:
         run: |
           cat .env
 
+      - name: Check if .env file exists
+        run: |
+          if [ -f .env ]; then
+            echo ".env file exists."
+          else
+            echo ".env file does not exist."
+            exit 1
+          fi
+
       - name: Set up SSH key
         run: |
           mkdir -p ~/.ssh
@@ -42,7 +51,7 @@ jobs:
 
           ssh -i $PEM_FILE $EC2_USER@$EC2_HOST "mkdir -p /home/$EC2_USER/app"
           scp -i $PEM_FILE -r ./* $EC2_USER@$EC2_HOST:/home/$EC2_USER/app/
-          scp -i $PEM_FILE .env $EC2_USER@$EC2_HOST:/home/$EC2_USER/app/
+          scp -v -i $PEM_FILE .env $EC2_USER@$EC2_HOST:/home/$EC2_USER/app/
 
       - name: Run Docker install script and deploy application
         run: |
