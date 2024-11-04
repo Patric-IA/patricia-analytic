@@ -14,8 +14,7 @@ logger = logging.getLogger(__name__)
 
 @router.post("/analyze-conversation")
 async def analyze_conversation(request: ConversationAnalysisRequest):
-    logger.info(f"Received request to analyze conversation with ID: {
-                request.conversation_id} for user ID: {request.user_id}")
+    logger.info(f"Received request to analyze conversation with ID: {request.conversation_id} for user ID: {request.user_id}")
 
     # Recuperar los fragmentos de la conversación
     fragments = collect_conversation_fragments(request.conversation_id)
