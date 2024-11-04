@@ -1,0 +1,78 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Create .env file
+        run: |
+          echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> .env
+          echo "MONGO_URI=${{ secrets.MONGO_URI }}" >> .env
+          echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> .env
+          echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> .env
+          echo "BUCKET_NAME=${{ secrets.BUCKET_NAME }}" >> .env
+
+      - name: Show .env contents
+        run: |
+          cat .env
+
+      - name: Set up SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/patrickey.pem
+          chmod 600 ~/.ssh/patrickey.pem
+
+      - name: Add SSH known hosts
+        run: ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Copy application files and .env file
+        run: |
+          EC2_USER=${{ secrets.EC2_USER }}
+          EC2_HOST=${{ secrets.EC2_HOST }}
+          PEM_FILE=~/.ssh/patrickey.pem
+
+          ssh -i $PEM_FILE $EC2_USER@$EC2_HOST "mkdir -p /home/$EC2_USER/app"
+          scp -i $PEM_FILE -r ./* $EC2_USER@$EC2_HOST:/home/$EC2_USER/app/
+          scp -i $PEM_FILE .env $EC2_USER@$EC2_HOST:/home/$EC2_USER/app/
+
+      - name: Run Docker install script and deploy application
+        run: |
+          EC2_USER=${{ secrets.EC2_USER }}
+          EC2_HOST=${{ secrets.EC2_HOST }}
+          PEM_FILE=~/.ssh/patrickey.pem
+
+          ssh -i $PEM_FILE $EC2_USER@$EC2_HOST << 'EOF'
+            # Navegar al directorio de la aplicación
+            cd /home/${{ secrets.EC2_USER }}/app/
+            
+            # Ejecutar limpieza de Docker
+            sudo docker system prune -a -f
+
+            # Dar permisos de ejecución al script de instalación de Docker
+            chmod +x install_docker.sh
+            sudo ./install_docker.sh
+            
+            # Detener y eliminar contenedores e imágenes existentes
+            sudo docker stop $(sudo docker ps -aq) && sudo docker rm -f $(sudo docker ps -aq) && sudo docker rmi -f $(sudo docker images -q) && sudo docker volume rm $(sudo docker volume ls -q) && sudo docker network rm $(sudo docker network ls -q)
+
+            # Construir la imagen
+            sudo docker build -t patric-analytics .
+
+            # Comprobar si la imagen se ha creado
+            if [[ "$(sudo docker images -q patric-analytics 2> /dev/null)" == "" ]]; then
+                echo "La imagen patric-analytics no se ha creado. Abortando."
+                exit 1
+            fi
+
+            # Ejecutar la aplicación Flask
+            sudo docker run -d -p 3000:3000 patric-analytics
+          EOF
