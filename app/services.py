@@ -13,12 +13,16 @@ import librosa
 import numpy as np
 import logging
 import json
+from openai import OpenAI
+from datetime import datetime
+import re
 
 # Conexiones a S3 y MongoDB
 s3 = boto3.resource('s3')
 client = MongoClient(MONGO_URI, server_api=ServerApi('1'))
 db = client["patricia-database"]
 conversations_collection = db["conversation"]
+client = OpenAI()
 
 def upload_to_s3(file, filename):
     s3.Bucket(BUCKET_NAME).put_object(Key=filename, Body=file, ACL="public-read")
@@ -291,3 +295,68 @@ def generate_report(conversation_data):
             raise Exception(f"Error decoding JSON: {e}")
     else:
         raise Exception(f"Error in request: {response.status_code}, {response.text}")
+
+
+def call_openai_api(person1, person2, data_analysis):
+    prompt = f"""
+      **Objective**: To connect individuals based on their interests and compatibility for the purpose of learning English and practicing together.
+
+      **Data Analysis**:
+      - **Age Difference**: {data_analysis['age_difference']} years
+      - **Common Interests Count**: {data_analysis['interest_common']}
+      - **Common Hobbies Count**: {data_analysis['hobbies_common']}
+      - **Learning Preferences Match**: {data_analysis['learning_preferences_match']}
+      - **User Values Match**: {data_analysis['user_values_match']}
+      - **Digital Behavior Match**: {data_analysis['digital_behavior_match']}
+      - **Common Conversation Topics Count**: {data_analysis['conversation_topics_common']}
+
+      **Detailed Criteria**:
+      - **Depth of Common Interests**: Assess the significance of common interests. Are they aligned with both individuals' goals?
+      - **Hobbies' Impact on Compatibility**: Evaluate how shared hobbies can facilitate bonding and conversation.
+      - **Learning Preferences**: Consider how closely the individuals' preferred learning styles complement each other.
+      - **Values in Relationships**: Analyze how aligned values may contribute to deeper understanding and conflict resolution.
+      - **Digital Behavior Compatibility**: Examine how similar digital behaviors can affect their interaction frequency and comfort.
+      - **Conversation Topics Alignment**: Explore how well the common conversation topics can foster engaging discussions.
+
+      **Compatibility Evaluation**:
+      - Evaluate the compatibility considering the above factors and their significance for effective communication without awkward silences.
+      **Expected Response**: Provide a compatibility score from 0 to 1, considering both positive and negative influences on the score. Return only the final score without explanations or additional text.
+    """
+
+    print("Prompt:", prompt)  # Debugging: Print the prompt to check the input for the API
+
+    completion = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": prompt}],
+    )
+
+    result = completion.choices[0].message.content
+
+    match = re.search(r"(\b0(?:\.\d+)?|1(?:\.0)?)", result)
+    score = float(match.group(0)) if match else None
+
+    return score
+
+def analyze_data(person1, person2):
+    # Convertir las fechas de nacimiento de cadena a objeto datetime
+    dob1 = datetime.strptime(person1['user']['date_of_birth'], '%Y-%m-%d')
+    dob2 = datetime.strptime(person2['user']['date_of_birth'], '%Y-%m-%d')
+
+    analysis = {
+        "age_difference": abs((dob1 - dob2).days // 365),  # Calcula la diferencia de edad en años
+        "interest_common": len(set(person1['interests']).intersection(set(person2['interests']))),
+        "hobbies_common": len(set(person1['hobbies']).intersection(set(person2['hobbies']))),
+        "learning_preferences_match": person1['learning_preferences'] == person2['learning_preferences'],
+        "user_values_match": person1['user_values'] == person2['user_values'],
+        "digital_behavior_match": person1['digital_behavior'] == person2['digital_behavior'],
+        "conversation_topics_common": len(set(person1['conversation_topics']).intersection(set(person2['conversation_topics'])))
+    }
+    return analysis
+
+def evaluate_compatibility(person1, person2):
+    data_analysis = analyze_data(person1, person2)
+
+    # Llamar a la API de OpenAI para obtener el puntaje de compatibilidad
+    compatibility_score = call_openai_api(person1, person2, data_analysis)
+
+    return compatibility_score
