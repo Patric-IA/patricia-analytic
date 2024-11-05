@@ -16,6 +16,7 @@ import json
 from openai import OpenAI
 from datetime import datetime
 import re
+from app.models import PersonModel
 
 # Conexiones a S3 y MongoDB
 s3 = boto3.resource('s3')

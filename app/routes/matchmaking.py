@@ -11,6 +11,5 @@ router = APIRouter()
 
 @router.post("/matchmaking") 
 async def matchmaking(person1: PersonModel, person2: PersonModel):
-    # Llama a la función de evaluación de compatibilidad con los modelos de Pydantic
     compatibility_result = evaluate_compatibility(person1, person2)
     return {"compatibility_score": compatibility_result}

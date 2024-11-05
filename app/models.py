@@ -10,7 +10,7 @@ class ConversationAnalysisRequest(BaseModel):
     conversation_id: str
 
 class UserModel(BaseModel):
-    date_of_birth: str  # o Date si prefieres manejarlo como un objeto de fecha
+    date_of_birth: str
 
 class PersonModel(BaseModel):
     user: UserModel
