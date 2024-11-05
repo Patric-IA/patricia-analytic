@@ -6,7 +6,6 @@ import os
 import re
 from datetime import datetime
 from typing import Dict
-from app.models import Person
 
 router = APIRouter()
 
