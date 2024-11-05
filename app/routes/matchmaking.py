@@ -1,6 +1,5 @@
 from fastapi import APIRouter, File, Form, UploadFile, HTTPException
 from app.services import evaluate_compatibility
-from pydub import 
 from openai import OpenAI
 import os
 import re
