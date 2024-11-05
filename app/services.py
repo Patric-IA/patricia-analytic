@@ -213,15 +213,15 @@ def mapClasses():
     mapped_classes = []
 
     for index, class_entry in enumerate(class_data):
-        logger.info(f"Mapeando clase con ID {class_entry.get('_id')}.")
+        logger.info(f"Mapeando clase {index + 1} con ID {class_entry.get('_id')}.")
 
         # Mapea los datos de cada clase
         mapped_entry = {
             "_id": str(class_entry["_id"]),
-            "name": class_entry["name"],
-            "url": class_entry["url"],
-            "level": class_entry["level"],
-            "summary": class_entry["summary"],
+            "name": class_entry.get("name", ""),
+            "url": class_entry.get("url", ""),
+            "level": class_entry.get("level", ""),
+            "summary": class_entry.get("summary", ""),
             "classes": [],
             "video_titles": []
         }
@@ -229,12 +229,12 @@ def mapClasses():
         # Mapea las clases individuales
         for video_index, video in enumerate(class_entry.get("classes", [])):
             video_entry = {
-                "url": video["url"],
-                "name": video["name"],
-                "summary": video["summary"]
+                "url": video.get("url", ""),
+                "name": video.get("name", ""),
+                "summary": video.get("summary", "")
             }
             mapped_entry["classes"].append(video_entry)
-            mapped_entry["video_titles"].append(video["name"])
+            mapped_entry["video_titles"].append(video.get("name", ""))
 
             logger.debug(f"Clase {index + 1}, video {video_index + 1}: {video_entry}")
 
@@ -243,7 +243,6 @@ def mapClasses():
 
     logger.info("Mapeo de clases completado.")
     return json.dumps(mapped_classes, ensure_ascii=False, indent=4)
-
 
 def generate_report(conversation_data):
     classesMap = mapClasses()
