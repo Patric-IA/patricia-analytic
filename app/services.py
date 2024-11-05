@@ -320,10 +320,10 @@ def call_openai_api(person1, person2, data_analysis):
 
       **Compatibility Evaluation**:
       - Evaluate the compatibility considering the above factors and their significance for effective communication without awkward silences.
-      **Expected Response**: Provide a compatibility score from 0 to 1, considering both positive and negative influences on the score. Return only the final score without explanations or additional text.
+      **Expected Response**: Provide a compatibility score from 0 to 1, considering both positive and negative influences on the score. Return only the final score without explanations o textos adicionales.
     """
 
-    print("Prompt:", prompt)  # Debugging: Print the prompt to check the input for the API
+    print("Prompt:", prompt)  # Debugging: Print the prompt to check the input for la API
 
     completion = client.chat.completions.create(
         model="gpt-4o-mini",
