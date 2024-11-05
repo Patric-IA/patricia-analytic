@@ -213,7 +213,7 @@ def mapClasses():
     mapped_classes = []
 
     for index, class_entry in enumerate(class_data):
-        logger.info(f"Mapeando clase {index + 1}/{len(class_data)} con ID {class_entry.get('_id')}.")
+        logger.info(f"Mapeando clase con ID {class_entry.get('_id')}.")
 
         # Mapea los datos de cada clase
         mapped_entry = {
