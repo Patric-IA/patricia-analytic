@@ -11,3 +11,5 @@ pymongo[srv]
 librosa
 spacy
 transformers
+torch
+tensorflow

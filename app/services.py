@@ -12,9 +12,7 @@ import io
 import librosa
 import numpy as np
 import logging
-from transformers import pipeline
-import speech_recognition as sr
-import spacy
+import json
 
 # Conexiones a S3 y MongoDB
 s3 = boto3.resource('s3')
@@ -66,23 +64,40 @@ logger = logging.getLogger(__name__)
 def analyze_text(transcriptions):
     """
     Realiza un análisis textual de la transcripción usando la API de OpenAI.
-    """
+    """ 
+    
+    transcription = "#".join(transcriptions) 
+
     logger.info("Iniciando análisis textual de la transcripción.")
-    prompt = (
-        "You are an AI tool designed to automate language learning processes. "
-        "Please analyze the audio corresponding to the context phrase: \"{context_phrase}\" and provide a detailed JSON response that includes evaluations for the following aspects: "
-        "1. **Pronunciation**: Rate from 1 to 5, where 5 indicates clear and accurate pronunciation. "
-        "2. **Errors**: Identify and list any significant language errors, rated from 1 to 5, where 5 indicates no errors. "
-        "3. **Fluency**: Rate from 1 to 5, where 5 indicates smooth and natural speech. "
-        "Please ensure the JSON object follows this structure:\n"
-        "{\n"
-        "  \"pronunciation\": <rating>,\n"
-        "  \"errors\": <rating>,\n"
-        "  \"fluency\": <rating>,\n"
-        "  \"error_details\": [\"error1\", \"error2\", ...]\n"
-        "}\n"
-        "Make sure to provide feedback that is actionable and constructive for learning improvement."
-    )
+    prompt = f"""
+    You are an English language evaluator. Analyze the following English sentences separated by the '#' character:
+
+    {transcription}
+
+    Please provide your analysis in a valid JSON format without any extra characters or quotes. The JSON should include:
+    1. An "analysis" object with numerical scores from 1 to 10 for each of the following factors:
+    - "grammar": Assessment of grammatical structure.
+    - "vocabulary": Richness and accuracy of the vocabulary used.
+    - "fluency": Level of fluency in speaking or writing.
+    - "coherence": Logic and coherence in the construction of the sentences.
+    - "style": Appropriateness of style based on context (if relevant).
+
+    2. A "critical_feedback" string providing constructive feedback on each factor.
+
+    Your response should be structured like this:
+
+    {{
+        "analysis": {{
+            "grammar": <score>,
+            "vocabulary": <score>,
+            "fluency": <score>,
+            "coherence": <score>,
+            "style": <score>
+        }},
+        "critical_feedback": "<feedback>"
+    }}
+    Make sure to return only the JSON object, without additional formatting or text.
+    """
 
     response = requests.post(
         "https://api.openai.com/v1/chat/completions",
@@ -91,7 +106,7 @@ def analyze_text(transcriptions):
             "Content-Type": "application/json"
         },
         json={
-            "model": "gpt-3.5-turbo",
+            "model": "gpt-4o-mini",
             "messages": [
                 {"role": "user", "content": prompt}
             ]
@@ -103,16 +118,29 @@ def analyze_text(transcriptions):
         raise HTTPException(status_code=response.status_code, detail="Error al analizar la conversación.")
 
     logger.info("Análisis textual completado con éxito.")
-    return response.json()
 
-def analyze_audio(audio_links):
+    # Intenta convertir la respuesta en JSON
+    try:
+        response_json = response.json()  # Esto debería ser un JSON ya
+        # Si la respuesta tiene el contenido textual como un string JSON, puedes parsearlo
+        if isinstance(response_json, str):
+            response_json = json.loads(response_json)  # Convierte a objeto JSON
+
+        return response_json
+    except json.JSONDecodeError:
+        logger.error("Error al decodificar el JSON de la respuesta.")
+        raise HTTPException(status_code=500, detail="Error al procesar el análisis textual.")
+
+
+def analyze_audio(audio_links, transcriptions):
     """
-    Realiza un análisis avanzado de los archivos de audio descargándolos de S3 y
-    usando varias librerías para obtener métricas y retroalimentación detallada.
+    Realiza un análisis de los archivos de audio descargándolos de S3 y
+    usando librosa para obtener métricas avanzadas.
     """
     logger.info("Iniciando análisis de audio.")
     s3 = boto3.client('s3')
     combined_audio = AudioSegment.empty()
+    
 
     # Descargar y combinar audios
     for link in audio_links:
@@ -133,40 +161,133 @@ def analyze_audio(audio_links):
     duration = librosa.get_duration(y=y, sr=sr)
     tempo, _ = librosa.beat.beat_track(y=y, sr=sr)
     pitch = np.mean(librosa.yin(y, fmin=librosa.note_to_hz('C2'), fmax=librosa.note_to_hz('C7')))
-
-    # Transcripción de audio
-    recognizer = sr.Recognizer()
-    with sr.AudioFile(audio_file_path) as source:
-        audio = recognizer.record(source)
-        try:
-            transcription = recognizer.recognize_google(audio)
-        except sr.UnknownValueError:
-            transcription = "No se pudo reconocer el audio."
-
-    # Análisis de emociones
-    emotion_analyzer = pipeline("sentiment-analysis")
-    emotion_analysis = emotion_analyzer(transcription)
-
-    # Análisis léxico y gramatical
-    nlp = spacy.load("en_core_web_sm")
-    doc = nlp(transcription)
-    lexicon_score = len(set([token.text.lower() for token in doc if token.is_alpha])) / len(doc)
-    grammar_score = sum(1 for token in doc if token.pos_ in {"NOUN", "VERB", "ADJ", "ADV"}) / len(doc)
+    rms = np.mean(librosa.feature.rms(y=y))
+    zcr = np.mean(librosa.feature.zero_crossing_rate(y))
+    spectral_centroid = np.mean(librosa.feature.spectral_centroid(y=y, sr=sr))
+    spectral_bandwidth = np.mean(librosa.feature.spectral_bandwidth(y=y, sr=sr))
+    spectral_contrast = np.mean(librosa.feature.spectral_contrast(y=y, sr=sr))
+    spectral_flatness = np.mean(librosa.feature.spectral_flatness(y=y))
+    mfccs = np.mean(librosa.feature.mfcc(y=y, sr=sr), axis=1)
 
     logger.info("Análisis de audio completado con éxito.")
-    
-    # Retornar análisis de audio enriquecido
-    return {
-        "duration_seconds": duration,
-        "tempo": tempo,
-        "average_pitch": pitch,
-        "transcription": transcription,
-        "emotion_analysis": emotion_analysis,
-        "lexicon_score": lexicon_score,
-        "grammar_score": grammar_score
+    def convert_to_serializable(obj):
+        if isinstance(obj, (np.ndarray, list)):
+            return [float(x) for x in obj]
+        elif isinstance(obj, (np.float32, np.float64)):
+            return float(obj)
+        return obj
+
+    # Crear el diccionario con los resultados
+    results = {
+        "tempo": convert_to_serializable(tempo),
+        "average_pitch": convert_to_serializable(pitch),
+        "rms": convert_to_serializable(rms),
+        "zero_crossing_rate": convert_to_serializable(zcr),
+        "spectral_centroid": convert_to_serializable(spectral_centroid),
+        "spectral_bandwidth": convert_to_serializable(spectral_bandwidth),
+        "spectral_contrast": convert_to_serializable(spectral_contrast),
+        "spectral_flatness": convert_to_serializable(spectral_flatness),
+        "mfccs": convert_to_serializable(mfccs)  # Convertir MFCCs
     }
+
+    return json.dumps(results)
+
 
 
 def getClassesMongoDB():
-    classes = db["classes"]
+    classes = db["courses"]
     return classes.find({})
+
+def mapClasses():
+    class_data = getClassesMongoDB()
+    mapped_classes = []
+
+    for class_entry in class_data:
+        # Mapea los datos de cada clase
+        mapped_entry = {
+            "_id": str(class_entry["_id"]),
+            "name": class_entry["name"],
+            "url": class_entry["url"],
+            "level": class_entry["level"],
+            "summary": class_entry["summary"],
+            "classes": [],
+            "video_titles": []
+        }
+
+        # Mapea las clases individuales
+        for video in class_entry.get("classes", []):
+            video_entry = {
+                "url": video["url"],
+                "name": video["name"],
+                "summary": video["summary"]
+            }
+            mapped_entry["classes"].append(video_entry)
+            mapped_entry["video_titles"].append(video["name"])
+
+        mapped_classes.append(mapped_entry)
+
+    return json.dumps(mapped_classes, ensure_ascii=False, indent=4)
+
+
+def generate_report(conversation_data):
+    classesMap = mapClasses()
+
+    prompt = f"""
+    Based on the following conversation data:
+    {conversation_data}
+
+    COURSES: 
+    {classesMap}
+
+    Please generate a detailed feedback report in JSON format that includes the following sections, ALL THE FEEDBACK HAS TO BE IN SPANISH:
+
+    {{
+        "feedback": "Provide a comprehensive evaluation of the conversational performance. Highlight strengths, such as effective use of vocabulary or clarity in pronunciation, as well as weaknesses, such as areas needing improvement. Use specific examples from the conversation data to support your points and offer constructive suggestions for enhancement.",
+        
+        "metrics": {{
+            "grammar_score": "Rate from 1 to 5 based on grammatical accuracy, with specific examples to justify the rating.",
+            "vocabulary": "Rate from 1 to 5 based on the range and appropriateness of vocabulary used in the conversation. Provide suggestions for improvement where applicable.",
+            "pronunciation": "Rate from 1 to 5 based on the clarity and accuracy of pronunciation. Include tips for practice if needed.",
+            "fluency": "Rate from 1 to 5 based on the flow and pace of speech, noting any hesitations or disruptions.",
+            "coherence": "Rate from 1 to 5 based on the logical flow and organization of ideas presented in the conversation. Suggest ways to enhance coherence.",
+            "style": "Rate from 1 to 5 based on the appropriateness of the style for the context. Discuss any adjustments that could improve effectiveness.",
+        }},
+        
+        "recommended_courses": [
+            {{
+                "link": "URL to recommended course",
+                "justification": "Explain why this course is recommended based on the student's performance and identified areas for improvement."
+            }}
+        ]
+    }}
+
+    Ensure that the output is structured, clear, and actionable, adhering strictly to the specified JSON format.
+    """
+    
+    response = requests.post(
+        "https://api.openai.com/v1/chat/completions",
+        headers={
+            "Authorization": f"Bearer {os.getenv('OPENAI_API_KEY')}",
+            "Content-Type": "application/json"
+        },
+        json={
+            "model": "gpt-4o-mini",
+            "messages": [
+                {"role": "user", "content": prompt}
+            ]
+        }
+    )
+
+
+    if response.status_code == 200:
+        json_response_str = response.json()['choices'][0]['message']['content']
+        
+        cleaned_response_str = json_response_str.replace("```json\n", "").replace("```", "").strip()
+
+        try:
+            json_response = json.loads(cleaned_response_str)
+            return json_response
+        except json.JSONDecodeError as e:
+            raise Exception(f"Error decoding JSON: {e}")
+    else:
+        raise Exception(f"Error in request: {response.status_code}, {response.text}")
