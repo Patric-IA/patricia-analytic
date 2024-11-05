@@ -53,6 +53,8 @@ jobs:
           scp -i $PEM_FILE -r ./* $EC2_USER@$EC2_HOST:/home/$EC2_USER/app/
           scp -v -i $PEM_FILE .env $EC2_USER@$EC2_HOST:/home/$EC2_USER/app/
 
+
+
       - name: Run Docker install script and deploy application
         run: |
           EC2_USER=${{ secrets.EC2_USER }}
