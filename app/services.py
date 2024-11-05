@@ -337,13 +337,13 @@ def call_openai_api(person1, person2, data_analysis):
 
     return score
 
-def analyze_data(person1, person2):
-    # Convertir las fechas de nacimiento de cadena a objeto datetime
+def analyze_data(person1: PersonModel, person2: PersonModel):
+    # Accede a los atributos del modelo
     dob1 = datetime.strptime(person1.user.date_of_birth, '%Y-%m-%d')
     dob2 = datetime.strptime(person2.user.date_of_birth, '%Y-%m-%d')
 
     analysis = {
-        "age_difference": abs((dob1 - dob2).days // 365),  # Calcula la diferencia de edad en años
+        "age_difference": abs((dob1 - dob2).days // 365),
         "interest_common": len(set(person1.interests).intersection(set(person2.interests))),
         "hobbies_common": len(set(person1.hobbies).intersection(set(person2.hobbies))),
         "learning_preferences_match": person1.learning_preferences == person2.learning_preferences,
@@ -353,10 +353,7 @@ def analyze_data(person1, person2):
     }
     return analysis
 
-def evaluate_compatibility(person1, person2):
+def evaluate_compatibility(person1: PersonModel, person2: PersonModel):
     data_analysis = analyze_data(person1, person2)
-
-    # Llamar a la API de OpenAI para obtener el puntaje de compatibilidad
     compatibility_score = call_openai_api(person1, person2, data_analysis)
-
     return compatibility_score

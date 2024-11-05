@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import List
+from typing import List, Dict
 
 class ConversationCreateRequest(BaseModel):
     user_uuid_1: str
@@ -10,7 +10,7 @@ class ConversationAnalysisRequest(BaseModel):
     conversation_id: str
 
 class UserModel(BaseModel):
-    date_of_birth: str
+    date_of_birth: str  # o Date si prefieres manejarlo como un objeto de fecha
 
 class PersonModel(BaseModel):
     user: UserModel
@@ -20,8 +20,3 @@ class PersonModel(BaseModel):
     learning_preferences: str
     digital_behavior: str
     conversation_topics: List[str]
-
-class MatchmakingRequest(BaseModel):
-    person1: PersonModel = Field(..., description="Información de la primera persona")
-    person2: PersonModel = Field(..., description="Información de la segunda persona")
-
