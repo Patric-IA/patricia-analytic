@@ -204,10 +204,17 @@ def getClassesMongoDB():
     return classes.find({})
 
 def mapClasses():
+    logger.info("Iniciando mapeo de clases desde MongoDB.")
+    
+    # Obtiene los datos de MongoDB
     class_data = getClassesMongoDB()
+    logger.debug(f"Datos obtenidos de MongoDB: {class_data}")
+    
     mapped_classes = []
 
-    for class_entry in class_data:
+    for index, class_entry in enumerate(class_data):
+        logger.info(f"Mapeando clase {index + 1}/{len(class_data)} con ID {class_entry.get('_id')}.")
+
         # Mapea los datos de cada clase
         mapped_entry = {
             "_id": str(class_entry["_id"]),
@@ -220,7 +227,7 @@ def mapClasses():
         }
 
         # Mapea las clases individuales
-        for video in class_entry.get("classes", []):
+        for video_index, video in enumerate(class_entry.get("classes", [])):
             video_entry = {
                 "url": video["url"],
                 "name": video["name"],
@@ -229,8 +236,12 @@ def mapClasses():
             mapped_entry["classes"].append(video_entry)
             mapped_entry["video_titles"].append(video["name"])
 
-        mapped_classes.append(mapped_entry)
+            logger.debug(f"Clase {index + 1}, video {video_index + 1}: {video_entry}")
 
+        mapped_classes.append(mapped_entry)
+        logger.info(f"Clase {index + 1} mapeada con éxito.")
+
+    logger.info("Mapeo de clases completado.")
     return json.dumps(mapped_classes, ensure_ascii=False, indent=4)
 
 
