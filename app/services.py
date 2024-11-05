@@ -339,17 +339,17 @@ def call_openai_api(person1, person2, data_analysis):
 
 def analyze_data(person1, person2):
     # Convertir las fechas de nacimiento de cadena a objeto datetime
-    dob1 = datetime.strptime(person1['user']['date_of_birth'], '%Y-%m-%d')
-    dob2 = datetime.strptime(person2['user']['date_of_birth'], '%Y-%m-%d')
+    dob1 = datetime.strptime(person1.user.date_of_birth, '%Y-%m-%d')
+    dob2 = datetime.strptime(person2.user.date_of_birth, '%Y-%m-%d')
 
     analysis = {
         "age_difference": abs((dob1 - dob2).days // 365),  # Calcula la diferencia de edad en años
-        "interest_common": len(set(person1['interests']).intersection(set(person2['interests']))),
-        "hobbies_common": len(set(person1['hobbies']).intersection(set(person2['hobbies']))),
-        "learning_preferences_match": person1['learning_preferences'] == person2['learning_preferences'],
-        "user_values_match": person1['user_values'] == person2['user_values'],
-        "digital_behavior_match": person1['digital_behavior'] == person2['digital_behavior'],
-        "conversation_topics_common": len(set(person1['conversation_topics']).intersection(set(person2['conversation_topics'])))
+        "interest_common": len(set(person1.interests).intersection(set(person2.interests))),
+        "hobbies_common": len(set(person1.hobbies).intersection(set(person2.hobbies))),
+        "learning_preferences_match": person1.learning_preferences == person2.learning_preferences,
+        "user_values_match": person1.user_values == person2.user_values,
+        "digital_behavior_match": person1.digital_behavior == person2.digital_behavior,
+        "conversation_topics_common": len(set(person1.conversation_topics).intersection(set(person2.conversation_topics)))
     }
     return analysis
 
