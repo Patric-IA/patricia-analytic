@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from typing import List
 
 class ConversationCreateRequest(BaseModel):
     user_uuid_1: str
