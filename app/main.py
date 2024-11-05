@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.routes.conversation import router as conversation_router
 from app.routes.audio import router as audio_router
 from app.routes.analysis import router as analysis_router
+from app.routes.matchmaking import router as matchmaking_router
 
 app = FastAPI()
 
@@ -18,6 +19,7 @@ app.add_middleware(
 app.include_router(conversation_router)
 app.include_router(audio_router)
 app.include_router(analysis_router)
+app.include_router(matchmaking_router)
 
 @app.get("/")
 async def read_root():
